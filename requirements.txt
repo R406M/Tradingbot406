@@ -1,0 +1,4 @@
+ccxt==4.2.85
+flask==3.0.0
+python-dotenv==1.0.0
+requests==2.31.0
