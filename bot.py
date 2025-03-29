@@ -116,6 +116,5 @@ class TradingEngine:
 _engine = TradingEngine()
 
 # Interfaz pública para el webhook
-def execute_order(signal: str) -> bool:
-    """Ejecuta una orden desde el webhook"""
-    return _engine.process_signal(signal.lower())
+def execute_order(signal: str, symbol: str) -> dict:  # ✅ Asegurar parámetros correctos
+    return _engine.process_signal(signal, symbol)  # Ajustar según tu implementación
