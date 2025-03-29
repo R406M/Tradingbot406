@@ -20,12 +20,12 @@ logging.basicConfig(
 logger = logging.getLogger('TradingWebhook')
 logger.setLevel(logging.DEBUG if os.getenv('DEBUG') else logging.INFO)
 
-# Configuración de Rate Limiting
+# Configuración de Rate Limiting para producción
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage_uri="memory://",
-    default_limits=["100 per hour", "20 per minute"],
+    storage_uri="memory://" if os.getenv('FLASK_ENV') == 'development' else os.getenv('REDIS_URL', 'memory://'),
+    default_limits=["200 per hour", "50 per minute"] if os.getenv('FLASK_ENV') == 'production' else ["unlimited"],
     strategy="fixed-window"
 )
 
@@ -35,7 +35,7 @@ def validate_webhook_payload(data: Dict[str, Any]) -> bool:
     return all(field in data for field in required_fields)
 
 @app.route('/webhook', methods=['POST'])
-@limiter.limit("15 per minute")
+@limiter.limit("20 per minute")
 def handle_webhook() -> tuple:
     """Endpoint principal para el webhook de trading"""
     try:
@@ -97,10 +97,11 @@ def health_check() -> tuple:
     """Endpoint de verificación de salud"""
     return jsonify({
         "status": "ok",
-        "version": "1.0.0",
+        "version": os.getenv("APP_VERSION", "1.0.0"),
         "environment": os.getenv("FLASK_ENV", "development")
     }), 200
 
+# Configuración dinámica para Render
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8080))
     app.run(
