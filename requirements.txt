@@ -1,6 +1,15 @@
+# Servidor y Framework
 gunicorn==21.2.0
-ccxt==4.2.85
 flask==3.0.0
-flask-limiter==3.5.0  
-python-dotenv==1.0.0
-requests==2.31.0
+blinker==1.7.0
+markupsafe==2.1.5
+
+# Trading y Seguridad
+ccxt==4.2.85
+cryptography==44.0.2
+
+# Gestión de Tráfico
+flask-limiter==4.0.1
+
+# Variables de Entorno (solo desarrollo)
+python-dotenv==1.0.0 ; python_version < '3.12'
