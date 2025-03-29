@@ -9,7 +9,7 @@ ccxt==4.2.85
 cryptography==44.0.2
 
 # Gestión de Tráfico
-flask-limiter==4.0.1
+flask-limiter==3.11.0
 
 # Variables de Entorno (solo desarrollo)
 python-dotenv==1.0.0 ; python_version < '3.12'
