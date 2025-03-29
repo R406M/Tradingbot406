@@ -66,7 +66,7 @@ def handle_webhook() -> tuple:
         })
 
         result = execute_order(
-            action=data['action'],
+            signal=data['action'],
             symbol=data.get('symbol', os.getenv("DEFAULT_SYMBOL"))
         )
 
