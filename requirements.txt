@@ -1,5 +1,6 @@
-gunicorn==21.2.0  # o la última versión estable
+gunicorn==21.2.0
 ccxt==4.2.85
 flask==3.0.0
+flask-limiter==3.5.0  
 python-dotenv==1.0.0
 requests==2.31.0
