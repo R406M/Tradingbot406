@@ -10,6 +10,6 @@ cryptography==44.0.2
 
 # Gestión de Tráfico
 flask-limiter==3.11.0
-
+backoff==2.2.1
 # Variables de Entorno (solo desarrollo)
 python-dotenv==1.0.0 ; python_version < '3.12'
