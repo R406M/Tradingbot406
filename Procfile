@@ -1,1 +1,1 @@
-web: gunicorn webhook:app
+web: gunicorn --bind 0.0.0.0:$PORT --timeout 600 webhook:app
