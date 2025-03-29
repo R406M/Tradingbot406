@@ -9,7 +9,7 @@ from typing import Dict, Any
 
 # Configuración de aplicación Flask
 app = Flask(__name__)
-app.config['JSON_SORT_KEYS'] = False  # Mejor rendimiento en respuestas JSON
+app.config['JSON_SORT_KEYS'] = False
 
 # Configuración avanzada de logging
 logging.basicConfig(
@@ -39,7 +39,6 @@ def validate_webhook_payload(data: Dict[str, Any]) -> bool:
 def handle_webhook() -> tuple:
     """Endpoint principal para el webhook de trading"""
     try:
-        # Validación básica del request
         if not request.is_json:
             logger.warning("Intento de acceso con formato no JSON", extra={
                 "client": request.remote_addr,
@@ -49,27 +48,23 @@ def handle_webhook() -> tuple:
 
         data: Dict[str, Any] = request.get_json()
         
-        # Validación avanzada del payload
         if not validate_webhook_payload(data):
             logger.error("Payload incompleto", extra={"payload": data})
             return jsonify({"status": "error", "code": "INVALID_PAYLOAD"}), 400
 
-        # Verificación de seguridad
         if data['token'] != os.getenv("WEBHOOK_TOKEN"):
             logger.warning("Intento de acceso no autorizado", extra={
                 "client_ip": request.remote_addr,
-                "received_token": data['token'][:3] + "***"  # Log parcial por seguridad
+                "received_token": data['token'][:3] + "***"
             })
             return jsonify({"status": "error", "code": "INVALID_TOKEN"}), 401
 
-        # Procesamiento de la señal
         logger.info("Señal recibida", extra={
             "action": data['action'],
             "symbol": data.get('symbol'),
             "source": data.get('source', 'unknown')
         })
 
-        # Ejecutar orden de trading
         result = execute_order(
             action=data['action'],
             symbol=data.get('symbol', os.getenv("DEFAULT_SYMBOL"))
@@ -101,12 +96,4 @@ def health_check() -> tuple:
         "environment": os.getenv("FLASK_ENV", "development")
     }), 200
 
-# Configuración dinámica para Render
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 8080))
-    app.run(
-        host='0.0.0.0',
-        port=port,
-        threaded=True,
-        use_reloader=os.getenv('FLASK_ENV') == 'development'
-    )
+# Eliminar completamente el bloque if __name__ == '__main__'
