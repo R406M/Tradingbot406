@@ -4,53 +4,108 @@ from flask_limiter.util import get_remote_address
 from bot import execute_order
 import logging
 import os
+import json
+from typing import Dict, Any
 
+# Configuración de aplicación Flask
 app = Flask(__name__)
+app.config['JSON_SORT_KEYS'] = False  # Mejor rendimiento en respuestas JSON
 
-# Configuración de logs (solo consola)
+# Configuración avanzada de logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler()]  # Eliminamos FileHandler
+    level=logging.INFO if os.getenv('FLASK_ENV') == 'production' else logging.DEBUG,
+    format='{"time": "%(asctime)s", "level": "%(levelname)s", "name": "%(name)s", "message": "%(message)s"}',
+    handlers=[logging.StreamHandler()]
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('TradingWebhook')
+logger.setLevel(logging.DEBUG if os.getenv('DEBUG') else logging.INFO)
 
-# Rate Limiting (máx 10 solicitudes/minuto)
+# Configuración de Rate Limiting
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    default_limits=["10 per minute"]
+    storage_uri="memory://",
+    default_limits=["100 per hour", "20 per minute"],
+    strategy="fixed-window"
 )
 
+def validate_webhook_payload(data: Dict[str, Any]) -> bool:
+    """Validación avanzada del payload del webhook"""
+    required_fields = {'action', 'token', 'symbol', 'timestamp'}
+    return all(field in data for field in required_fields)
+
 @app.route('/webhook', methods=['POST'])
-@limiter.limit("5 per minute")  # Límite específico para esta ruta
-def handle_webhook():
+@limiter.limit("15 per minute")
+def handle_webhook() -> tuple:
+    """Endpoint principal para el webhook de trading"""
     try:
+        # Validación básica del request
         if not request.is_json:
-            logger.warning("Intento de acceso con formato no JSON")
-            return jsonify({"status": "error", "message": "Se esperaba JSON"}), 400
+            logger.warning("Intento de acceso con formato no JSON", extra={
+                "client": request.remote_addr,
+                "path": request.path
+            })
+            return jsonify({"status": "error", "code": "INVALID_FORMAT"}), 400
+
+        data: Dict[str, Any] = request.get_json()
         
-        data = request.json
-        action = data.get('action')
-        token = data.get('token')
-        
-        # Validación de seguridad
-        if token != os.getenv("WEBHOOK_TOKEN"):
-            logger.error("Intento de acceso con token inválido")
-            return jsonify({"status": "error", "message": "Token inválido"}), 401
-            
-        if action not in ['buy', 'sell']:
-            logger.warning(f"Acción inválida recibida: {action}")
-            return jsonify({"status": "error", "message": "Acción no válida"}), 400
-        
-        logger.info(f"Señal recibida: {action.upper()}")
-        execute_order(action)
-        return jsonify({"status": "success"}), 200
+        # Validación avanzada del payload
+        if not validate_webhook_payload(data):
+            logger.error("Payload incompleto", extra={"payload": data})
+            return jsonify({"status": "error", "code": "INVALID_PAYLOAD"}), 400
+
+        # Verificación de seguridad
+        if data['token'] != os.getenv("WEBHOOK_TOKEN"):
+            logger.warning("Intento de acceso no autorizado", extra={
+                "client_ip": request.remote_addr,
+                "received_token": data['token'][:3] + "***"  # Log parcial por seguridad
+            })
+            return jsonify({"status": "error", "code": "INVALID_TOKEN"}), 401
+
+        # Procesamiento de la señal
+        logger.info("Señal recibida", extra={
+            "action": data['action'],
+            "symbol": data.get('symbol'),
+            "source": data.get('source', 'unknown')
+        })
+
+        # Ejecutar orden de trading
+        result = execute_order(
+            action=data['action'],
+            symbol=data.get('symbol', os.getenv("DEFAULT_SYMBOL"))
+        )
+
+        return jsonify({
+            "status": "success",
+            "order_id": result.get('id'),
+            "executed_price": result.get('price')
+        }), 200
 
     except Exception as e:
-        logger.error(f"Error crítico: {str(e)}", exc_info=True)
-        return jsonify({"status": "error", "message": "Error interno"}), 500
+        logger.critical("Error crítico en el webhook", 
+                      exc_info=True,
+                      extra={"stack_trace": True})
+        return jsonify({
+            "status": "error",
+            "code": "INTERNAL_ERROR",
+            "message": "Problema interno del servidor"
+        }), 500
+
+@app.route('/health', methods=['GET'])
+@limiter.exempt
+def health_check() -> tuple:
+    """Endpoint de verificación de salud"""
+    return jsonify({
+        "status": "ok",
+        "version": "1.0.0",
+        "environment": os.getenv("FLASK_ENV", "development")
+    }), 200
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 8080))  # Usa el puerto de Render o 8080
-    app.run(host='0.0.0.0', port=port)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(
+        host='0.0.0.0',
+        port=port,
+        threaded=True,
+        use_reloader=os.getenv('FLASK_ENV') == 'development'
+    )
