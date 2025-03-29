@@ -52,4 +52,5 @@ def handle_webhook():
         return jsonify({"status": "error", "message": "Error interno"}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    port = int(os.environ.get("PORT", 8080))  # Usa el puerto de Render o 8080
+    app.run(host='0.0.0.0', port=port)
