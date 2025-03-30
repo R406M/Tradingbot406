@@ -70,11 +70,19 @@ def handle_webhook() -> tuple:
             symbol=data.get('symbol', os.getenv("DEFAULT_SYMBOL"))
         )
 
-        return jsonify({
-            "status": "success",
-            "order_id": result.get('id'),
-            "executed_price": result.get('price')
-        }), 200
+        if result.get('status') == 'success':
+            return jsonify({
+                "status": "success",
+                "order_id": result.get('id'),
+                "executed_price": result.get('price'),
+                "symbol": result.get('symbol')
+            }), 200
+        else:
+            logger.error("Error en ejecución", extra={"error_code": result.get('code')})
+            return jsonify({
+                "status": "error",
+                "code": result.get('code', 'UNKNOWN_ERROR')
+            }), 500
 
     except Exception as e:
         logger.critical("Error crítico en el webhook", 
@@ -95,5 +103,3 @@ def health_check() -> tuple:
         "version": os.getenv("APP_VERSION", "1.0.0"),
         "environment": os.getenv("FLASK_ENV", "development")
     }), 200
-
-# Eliminar completamente el bloque if __name__ == '__main__'
