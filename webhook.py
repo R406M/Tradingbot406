@@ -103,3 +103,7 @@ def health_check() -> tuple:
         "version": os.getenv("APP_VERSION", "1.0.0"),
         "environment": os.getenv("FLASK_ENV", "development")
     }), 200
+
+if __name__ == '__main__':
+    port = int(os.getenv('PORT', '5000'))  # Usa el puerto de Render o 5000 localmente
+    app.run(host='0.0.0.0', port=port)
